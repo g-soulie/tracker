@@ -1,0 +1,11 @@
+{
+    "MOUNT_FOLDER": "/track/",
+    "INDEX_FOLDER": ".hddTracker/",
+    "INDEXED_FILE": "indexed.txt",
+    "INDEX_FILE": "index.txt",
+    "CONF_PATH": "conf/",
+    "CURRENT_FOLDER": "current/",
+    "OLD_FOLDER": "old/",
+    "EDITOR": "subl3",
+    "USER": "root"
+}
