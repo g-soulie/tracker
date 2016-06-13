@@ -1,6 +1,6 @@
 {
     "MOUNT_FOLDER": "/track/",
-    "INDEX_FOLDER": ".hddTracker/",
+    "INDEX_FOLDER": ".tracker/",
     "INDEXED_FILE": "indexed.txt",
     "INDEX_FILE": "index.txt",
     "CONF_PATH": "conf/",
