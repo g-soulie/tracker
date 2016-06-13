@@ -127,7 +127,7 @@ def index():
                 f = open(hdd_path + config["INDEX_PATH"], 'w')
                 f.close
                 for folder in indexed_folder:
-                    process = subprocess.Popen("sudo find \"" + folder +
+                    process = subprocess.Popen("sudo ls -R \"" + folder +
                                                "\" >> " + hdd_path +
                                                config["INDEX_PATH"],
                                                shell=True)
