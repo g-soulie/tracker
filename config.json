@@ -7,5 +7,15 @@
     "CURRENT_FOLDER": "current/",
     "OLD_FOLDER": "old/",
     "EDITOR": "subl3",
-    "USER": "root"
+    "USER": "root",
+        "unindexed": [
+        "IMG[0-9]*.JPG",
+        "IMG[0-9]*.jpg",
+        "DSC[0-9]*.JPG",
+        "DSC[0-9]*.jpg",
+        "_DSC[0-9]*.jpg",
+        "_DSC[0-9]*.JPG",
+        "_DSC[0-9]*.NEF",
+        "Photo[0-9]*.jpg"
+    ]
 }

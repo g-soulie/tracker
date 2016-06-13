@@ -116,23 +116,39 @@ def index():
         for hdd in os.listdir(config["MOUNT_FOLDER"]):
             print("indexing " + hdd)
             hdd_path = config["MOUNT_FOLDER"] + hdd + "/"
-            indexed_folder = []
 
             if os.path.isfile(hdd_path + config["INDEXED_PATH"]):
+                indexed_folder = []
+                unindexed_folder = []
                 f = open(hdd_path + config["INDEXED_PATH"], 'r')
                 for line in f:
-                    indexed_folder.append(hdd_path + line.rstrip('\n'))
+                    line = line.split('-except-')
+                    indexed_folder.append(
+                        hdd_path + line[0].rstrip('\n'))
+                    if len(line) > 1:
+                        line = line[1].split(',')
+                        unindexed_folder.append(line)
+                    else:
+                        unindexed_folder.append([])
+
                 if os.path.isfile(hdd_path + config["INDEX_PATH"]):
                     os.remove(hdd_path + config["INDEX_PATH"])
                 f = open(hdd_path + config["INDEX_PATH"], 'w')
                 f.close
-                for folder in indexed_folder:
-                    process = subprocess.Popen("sudo ls -R \"" + folder +
-                                               "\" >> " + hdd_path +
-                                               config["INDEX_PATH"],
-                                               shell=True)
+
+                for i in range(len(indexed_folder)):
+                    hide = ""
+                    for folder in unindexed_folder[i]:
+                        hide += "--hide='" + folder.rstrip('\n') + "' "
+                    for expression in config['unindexed']:
+                        hide += "--hide='" + expression + "' "
+
+                    process = subprocess.Popen(
+                        "sudo ls " + hide + " -R \"" + indexed_folder[i] +
+                        "\" >> " + hdd_path + config["INDEX_PATH"],
+                        shell=True)
                     process.wait()
-                save()
+                save(hdd)
             else:
                 print("! - Error indexing " + hdd +
                       " : No indexed folders file")
@@ -143,16 +159,15 @@ def index():
         error_no_device()
 
 
-def save():
-    for folder in os.listdir(config["MOUNT_FOLDER"]):
-        process = subprocess.Popen(
-            "mv " + config["CURRENT_PATH"] + folder + "* " +
-            config["OLD_PATH"] + folder + "/", shell=True)
-        process.wait()
-        shutil.copyfile(config["MOUNT_FOLDER"] + folder +
-                        "/" + config["INDEX_PATH"],
-                        config["CURRENT_PATH"] + folder + "-" +
-                        str(time.strftime("%y-%m-%d.%H-%M-%S")) + ".txt")
+def save(folder):
+    process = subprocess.Popen(
+        "mv " + config["CURRENT_PATH"] + folder + "* " +
+        config["OLD_PATH"] + folder + "/", shell=True)
+    process.wait()
+    shutil.copyfile(config["MOUNT_FOLDER"] + folder +
+                    "/" + config["INDEX_PATH"],
+                    config["CURRENT_PATH"] + folder + "-" +
+                    str(time.strftime("%y-%m-%d.%H-%M-%S")) + ".txt")
 
 
 def open_index_files():
@@ -162,6 +177,11 @@ def open_index_files():
                                  folder + "/" + config["INDEX_FOLDER"]):
                 os.mkdir(config["MOUNT_FOLDER"] + folder +
                          "/" + config["INDEX_FOLDER"])
+                process = subprocess.Popen("sudo chmod 777 " +
+                                           config["MOUNT_FOLDER"] + folder +
+                                           "/" +
+                                           config["INDEX_FOLDER"], shell=True)
+                process.wait()
             os.popen("sudo -u " + config["USER"] + " " +
                      config["EDITOR"] + " " +
                      config["MOUNT_FOLDER"] + folder + "/" +
@@ -187,6 +207,8 @@ if __name__ == '__main__':
                         help="open the index files in user editor")
     parser.add_argument("-wtf", action="store_true",
                         help="display some help on how it's working")
+    parser.add_argument("-ni", "--no_indexing", action="store_true",
+                        help="mount or umount without indexing")
     args = parser.parse_args()
 
     set_UUID()
@@ -196,14 +218,19 @@ if __name__ == '__main__':
         umount()
         connected_UUID = get_connected_UUID()
         mount()
-        index()
+        if not args.no_indexing:
+            index()
 
     if args.umount:
-        index()
+        if not args.no_indexing:
+            index()
         umount()
 
     if args.index:
-        index()
+        if not args.no_indexing:
+            index()
+        else:
+            print("! - Can not index and not index in the same time !")
 
     if args.open:
         open_index_files()
