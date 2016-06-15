@@ -9,14 +9,14 @@ import json
 
 UUID = {}
 config = {}
-LSBLK_EXPRESSION = '.*(sd(b|c|d|e)[0-9]) .*[ ]([^ ]+)[ ]*'
-DF_H_EXPRESSION = '^.* ([0-9]+)G[ ]+[0-9]+G[ ]+[0-9\.]+G[ ]+([0-9]+)% '
+LSBLK_EXPRESSION = '.*(sd(a|b|c|d|e)[0-9]+) .*[ ]([^ ]+)[ ]*[/].*'
+DF_H_EXPRESSION = '^.* ([0-9\.]+)G[ ]+[0-9\.]+G[ ]+[0-9\.]+G[ ]+([0-9]+)% '
 
 
 PROJECT_PATH = "/datas/Cloud/git/hddTracker/"
 
-UUID_FILE = "self-UUID.json"
-CONF_FILE = "self-config.json"
+UUID_FILE = "UUID.json"
+CONF_FILE = "config.json"
 
 UUID_PATH = PROJECT_PATH + UUID_FILE
 CONF_PATH = PROJECT_PATH + CONF_FILE
@@ -48,30 +48,44 @@ def set_parameters():
     config["INFO_PATH"] = config["INDEX_FOLDER"] + config["INFO_FILE"]
 
 
-def preprocess_local_folder():
+def preprocess_local_folders():
+    # #########   INDEX    #############
     if not os.path.isdir(config["LOCAL_INDEX_PATH"]):
         os.mkdir(config["LOCAL_INDEX_PATH"])
     if not os.path.isdir(config["CURRENT_INDEX_PATH"]):
         os.mkdir(config["CURRENT_INDEX_PATH"])
     if not os.path.isdir(config["OLD_INDEX_PATH"]):
         os.mkdir(config["OLD_INDEX_PATH"])
-    for folder in os.listdir(config["MOUNT_FOLDER"]):
-        if not os.path.isdir(config["OLD_INDEX_PATH"] + folder):
-            os.mkdir(config["OLD_INDEX_PATH"] + folder)
+
+    for uuid in connected_UUID.keys():
+        if uuid in UUID.keys():
+            if not os.path.isdir(config["OLD_INDEX_PATH"] + get_mount_folder(uuid)):
+                os.mkdir(config["OLD_INDEX_PATH"] + get_mount_folder(uuid))
+
+    # #########   INFO   #############
     if not os.path.isdir(config["LOCAL_INFO_PATH"]):
         os.mkdir(config["LOCAL_INFO_PATH"])
     if not os.path.isdir(config["CURRENT_INFO_PATH"]):
         os.mkdir(config["CURRENT_INFO_PATH"])
     if not os.path.isdir(config["OLD_INFO_PATH"]):
         os.mkdir(config["OLD_INFO_PATH"])
-    for folder in os.listdir(config["MOUNT_FOLDER"]):
-        if not os.path.isdir(config["OLD_INFO_PATH"] + folder):
-            os.mkdir(config["OLD_INFO_PATH"] + folder)
+
+    for uuid in connected_UUID.keys():
+        if uuid in UUID.keys():
+            if not os.path.isdir(config["OLD_INFO_PATH"] +
+                                 get_mount_folder(uuid)):
+                os.mkdir(config["OLD_INFO_PATH"] + get_mount_folder(uuid))
 
 
-def get_connected_UUID():
+def preprocess_non_local_folders():
+    for uuid in connected_UUID.keys():
+        if uuid in UUID.keys():
+            if not os.path.isdir(get_mount_folder(uuid) + config['INDEX_FOLDER']):
+                os.mkdir(get_mount_folder(uuid) + config['INDEX_FOLDER'])
+
+
+def set_connected_UUID():
     print("collecting connected devices...")
-    connected_UUID = {}
     lsblk = os.popen("lsblk -f").read()
     lsblk = lsblk.split('\n')
     for line in lsblk:
@@ -79,182 +93,170 @@ def get_connected_UUID():
         if reg is not None:
             connected_UUID[reg.group(3)] = reg.group(1)
             if reg.group(3) in UUID.keys():
-                string = " " + UUID[reg.group(3)]
+                string = " " + UUID[reg.group(3)]["name"]
             else:
                 string = " no match."
             print(
                 " . " + connected_UUID[reg.group(3)] + " detected :" + string)
-    return connected_UUID
 
 
-def mount_connected_devices(connected_UUID):
+def get_mount_folders():
+    mount_folders = []
     for uuid in connected_UUID.keys():
-        if uuid in UUID.keys():
-            process = subprocess.Popen(
-                "mkdir " + config["MOUNT_FOLDER"] + UUID[uuid], shell=True)
-            process.wait()
-            process = subprocess.Popen(
-                "sudo mount /dev/" + connected_UUID[uuid] + " " +
-                config["MOUNT_FOLDER"] + UUID[uuid], shell=True)
-            print(" . " + UUID[uuid] + " monted")
-            process.wait()
+        mount_folders.append(get_mount_folder(uuid))
+    return mount_folders
+
+
+def get_mount_folder(uuid, slash=True):
+    mount_folder = UUID[uuid]["mount_path"] + UUID[uuid]["name"]
+    if slash:
+        mount_folder += "/"
+    return mount_folder
 
 
 def mount():
     print("mounting...")
-    if len(connected_UUID) > 0:
-        process = subprocess.Popen(
-            "sudo mkdir " + config["MOUNT_FOLDER"], shell=True)
-        process.wait()
-        process = subprocess.Popen(
-            "sudo chmod 777 -R " + config["MOUNT_FOLDER"], shell=True)
-        process.wait()
-        mount_connected_devices(connected_UUID)
+    nb_mounted = 0
+    for uuid in connected_UUID.keys():
+        if "sda" not in connected_UUID[uuid]:
+            nb_mounted += 1
+            if uuid in UUID.keys():
+                process = subprocess.Popen(
+                    "mkdir " + get_mount_folder(uuid), shell=True)
+                process.wait()
+                process = subprocess.Popen(
+                    "sudo mount /dev/" + connected_UUID[uuid] + " " +
+                    get_mount_folder(uuid), shell=True)
+                print(" . " + UUID[uuid]["name"] +
+                      " monted in " + get_mount_folder(uuid))
+                process.wait()
+        else:
+            print(connected_UUID[uuid] + " not mounted : local device")
+
+    if nb_mounted == 0:
+        error_no_device()
 
 
 def umount():
     print("umounting...")
-    if os.path.isdir(config["MOUNT_FOLDER"]):
-        for folder in os.listdir(config["MOUNT_FOLDER"]):
-            process = subprocess.Popen(
-                "sudo umount " + config["MOUNT_FOLDER"] + folder,
-                shell=True)
+    nb_umounted = 0
+    for uuid in connected_UUID.keys():
+        if "sda" not in connected_UUID[uuid]:
+            nb_umounted += 1
+            process = subprocess.Popen("sudo umount " +
+                                       get_mount_folder(uuid), shell=True)
             process.wait()
-            os.rmdir(config["MOUNT_FOLDER"] + folder)
-            print(" . " + folder + " umounted")
-        process = subprocess.Popen(
-            "sudo chmod 777 -R " + config["MOUNT_FOLDER"], shell=True)
-        process.wait()
-        os.rmdir(config["MOUNT_FOLDER"])
+            print(" . " + UUID[uuid]["name"] +
+                  " umounted from " + get_mount_folder(uuid))
+            process.wait()
+        else:
+            print(connected_UUID[uuid] + " not umounted : local device")
+    if nb_umounted == 0:
+        error_no_device()
 
 
 def collect_info():
-    if os.path.isdir(config["MOUNT_FOLDER"]):
-        preprocess_local_folder()
-        for hdd in os.listdir(config["MOUNT_FOLDER"]):
-            print("collecting info on " + hdd + "...")
-            hdd_path = config["MOUNT_FOLDER"] + hdd + "/"
+    for uuid in connected_UUID.keys():
+        if uuid in UUID.keys():
+            print("collect info on " + UUID[uuid]["name"] + "...")
+            hdd_path = get_mount_folder(uuid)
             dico = {"indexed": []}
 
-            #size and percentages
+            # size and percentages
             df_h = os.popen("df -h").read()
             df_h = df_h.split('\n')
 
             for line in df_h:
                 reg = re.match(DF_H_EXPRESSION +
-                               config["MOUNT_FOLDER"] + hdd, line)
+                               get_mount_folder(uuid, slash=False), line)
                 if reg is not None:
-                    print("ok")
-                    
                     dico["size"] = reg.group(1)
                     dico["percentage"] = reg.group(2)
 
-            # idnexed files
-            f = open(hdd_path + config['INDEXED_PATH'], 'r')
-            for line in f:
-                dico["indexed"].append(line.split('-except-')[0].split('\n')[0])
+            # indexed files
+            indexed_folders = get_indexed_folders(hdd_path)[0]
+            for folder in indexed_folders:
+                dico["indexed"].append(folder)
 
             with open(hdd_path + config["INFO_PATH"], 'w') as outfile:
                 json.dump(dico, outfile)
-            save_info(hdd)
-    else:
-        error_no_device()
+            save_info(uuid)
 
 
 def index():
     print("indexing...")
-    if os.path.isdir(config["MOUNT_FOLDER"]):
-        preprocess_local_folder()
-        for hdd in os.listdir(config["MOUNT_FOLDER"]):
-            print("indexing " + hdd)
-            hdd_path = config["MOUNT_FOLDER"] + hdd + "/"
+    for uuid in connected_UUID.keys():
+        if uuid in UUID.keys():
+            hdd_path = get_mount_folder(uuid)
+            temp = get_indexed_folders(hdd_path)
+            indexed_folder = temp[0]
+            unindexed_folder = temp[1]
+            if os.path.isfile(hdd_path + config["INDEX_PATH"]):
+                os.remove(hdd_path + config["INDEX_PATH"])
+            f = open(hdd_path + config["INDEX_PATH"], 'w')
+            f.close()
 
-            if os.path.isfile(hdd_path + config["INDEXED_PATH"]):
-                indexed_folder = []
-                unindexed_folder = []
-                f = open(hdd_path + config["INDEXED_PATH"], 'r')
-                for line in f:
-                    line = line.split('-except-')
-                    indexed_folder.append(
-                        hdd_path + line[0].rstrip('\n'))
-                    if len(line) > 1:
-                        line = line[1].split(',')
-                        unindexed_folder.append(line)
-                    else:
-                        unindexed_folder.append([])
+            for i in range(len(indexed_folder)):
+                hide = ""
+                for folder in unindexed_folder[i]:
+                    hide += "--hide='" + folder.rstrip('\n') + "' "
+                for expression in config['unindexed']:
+                    hide += "--hide='" + expression + "' "
 
-                if os.path.isfile(hdd_path + config["INDEX_PATH"]):
-                    os.remove(hdd_path + config["INDEX_PATH"])
-                f = open(hdd_path + config["INDEX_PATH"], 'w')
-                f.close()
-
-                for i in range(len(indexed_folder)):
-                    hide = ""
-                    for folder in unindexed_folder[i]:
-                        hide += "--hide='" + folder.rstrip('\n') + "' "
-                    for expression in config['unindexed']:
-                        hide += "--hide='" + expression + "' "
-
-                    process = subprocess.Popen(
-                        "sudo ls " + hide + " -R \"" + indexed_folder[i] +
-                        "\" >> " + hdd_path + config["INDEX_PATH"],
-                        shell=True)
-                    process.wait()
-                save_index(hdd)
-            else:
-                print("! - Error indexing " + hdd +
-                      " : No indexed folders file")
-                print("! - you need to create " +
-                      hdd_path + config["INDEXED_PATH"])
-                print("! - see option -o ")
-    else:
-        error_no_device()
-
-
-def save_index(folder):
-    process = subprocess.Popen(
-        "mv " + config["CURRENT_INDEX_PATH"] + folder + "* " +
-        config["OLD_INDEX_PATH"] + folder + "/", shell=True)
-    process.wait()
-    shutil.copyfile(config["MOUNT_FOLDER"] + folder +
-                    "/" + config["INDEX_PATH"],
-                    config["CURRENT_INDEX_PATH"] + folder + "-" +
-                    str(time.strftime("%y-%m-%d.%H-%M-%S")) + ".txt")
-
-
-def save_info(folder):
-    process = subprocess.Popen(
-        "mv " + config["CURRENT_INFO_PATH"] + folder + "* " +
-        config["OLD_INFO_PATH"] + folder + "/", shell=True)
-    process.wait()
-    shutil.copyfile(config["MOUNT_FOLDER"] + folder +
-                    "/" + config["INFO_PATH"],
-                    config["CURRENT_INFO_PATH"] + folder + "-" +
-                    str(time.strftime("%y-%m-%d.%H-%M-%S")) + ".txt")
-
-
-def open_index_files():
-    if os.path.isdir(config["MOUNT_FOLDER"]):
-        for folder in os.listdir(config["MOUNT_FOLDER"]):
-            if not os.path.isdir(config["MOUNT_FOLDER"] +
-                                 folder + "/" + config["INDEX_FOLDER"]):
-                os.mkdir(config["MOUNT_FOLDER"] + folder +
-                         "/" + config["INDEX_FOLDER"])
-                process = subprocess.Popen("sudo chmod 777 " +
-                                           config["MOUNT_FOLDER"] + folder +
-                                           "/" +
-                                           config["INDEX_FOLDER"], shell=True)
+                process = subprocess.Popen(
+                    "sudo ls " + hide + " -R \"" + hdd_path + indexed_folder[i] +
+                    "\" >> " + hdd_path + config["INDEX_PATH"],
+                    shell=True)
                 process.wait()
-            os.popen("sudo -u " + config["USER"] + " " +
-                     config["EDITOR"] + " " +
-                     config["MOUNT_FOLDER"] + folder + "/" +
-                     config["INDEXED_PATH"])
+            save_index(uuid)
+
+
+def get_indexed_folders(path):
+    if os.path.isfile(path + config["INDEXED_PATH"]):
+        indexed_folder = []
+        unindexed_folder = []
+        f = open(path + config["INDEXED_PATH"], 'r')
+        for line in f:
+            line = line.split('-except-')
+            indexed_folder.append(
+                line[0].rstrip('\n'))
+            if len(line) > 1:
+                line = line[1].split(',')
+                unindexed_folder.append(line)
+            else:
+                unindexed_folder.append([])
+        return [indexed_folder, unindexed_folder]
     else:
-        error_no_device()
+        print("! - Error indexing " + path +
+              " : No indexed folders file")
+        print("! - you need to create " +
+              path + config["INDEXED_PATH"])
+        print("! - see option -o ")
+        return [[], []]
+
+
+def save_index(uuid):
+    process = subprocess.Popen(
+        "mv " + config["CURRENT_INDEX_PATH"] + UUID[uuid]["name"] + "* " +
+        config["OLD_INDEX_PATH"] + UUID[uuid]["name"] + "/", shell=True)
+    process.wait()
+    shutil.copyfile(get_mount_folder(uuid) + "/" + config["INDEX_PATH"],
+                    config["CURRENT_INDEX_PATH"] + UUID[uuid]["name"] + "-" +
+                    str(time.strftime("%y-%m-%d.%H-%M-%S")) + ".txt")
+
+
+def save_info(uuid):
+    process = subprocess.Popen(
+        "mv " + config["CURRENT_INFO_PATH"] + UUID[uuid]["name"] + "* " +
+        config["OLD_INFO_PATH"] + UUID[uuid]["name"] + "/", shell=True)
+    process.wait()
+    shutil.copyfile(get_mount_folder(uuid) + "/" + config["INFO_PATH"],
+                    config["CURRENT_INFO_PATH"] + UUID[uuid]["name"] + "-" +
+                    str(time.strftime("%y-%m-%d.%H-%M-%S")) + ".txt")
 
 
 def error_no_device():
-    print("! - error - no tracked device mounted !!!")
+    print("! - error - no non local tracked devices founded !!!")
     print("! - see option -m for further informations")
 
 if __name__ == '__main__':
@@ -278,10 +280,12 @@ if __name__ == '__main__':
 
     set_UUID()
     set_parameters()
+    set_connected_UUID()
+    preprocess_local_folders()
+    preprocess_non_local_folders()
 
     if args.mount:
         umount()
-        connected_UUID = get_connected_UUID()
         mount()
         if not args.no_indexing:
             collect_info()
@@ -308,7 +312,7 @@ if __name__ == '__main__':
 
     if args.wtf:
         print()
-        print(config["MOUNT_FOLDER"] + "sampleHDD/")
+        print("/pathTo/sampleHDD/")
         print("  " + config["INDEX_FOLDER"])
         print("     " + config["INDEX_FILE"])
         print("     " + config["INDEXED_FILE"])

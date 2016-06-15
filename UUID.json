@@ -1,3 +1,7 @@
 {
-    "This is a an UUID": "This is a label"
+    "5A347D7A347D59C9": {
+        "name": "HDD3",
+        "mount_path": "/track/",
+        "cat": "HDD"
+    }
 }

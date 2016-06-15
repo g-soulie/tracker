@@ -10,14 +10,19 @@
     "EDITOR": "subl3",
     "USER": "root",
     "unindexed": [
-        "IMG[0-9]*.JPG",
+        "IMG[\\_0-9]*.JPG",
+        "IMG[\\_0-9]*.jpg",
         "IMG[0-9]*.jpg",
-        "DSC[0-9]*.JPG",
         "DSC[0-9]*.jpg",
+        "DSC[0-9]*.JPG",
+        "DSC_[0-9]*.JPG",
         "_DSC[0-9]*.jpg",
         "_DSC[0-9]*.JPG",
         "_DSC[0-9]*.NEF",
         "Photo[0-9]*.jpg",
+        "image[0-9]*.jpg",
+        "__pycache__",
+        ".*_fichiers",
         "cache2",
         "AppData"
     ]
