@@ -8,6 +8,10 @@ You have on each of your device a conf directory like :
         indexed.txt
         info.txt
 
+**New** : add user interface :
+
+<img src="https://raw.githubusercontent.com/g-soulie/tracker/master/screenshot.png" width="500">
+
 USE
 --------------------
 First, you need is to clone the repository :
