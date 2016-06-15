@@ -113,6 +113,10 @@ class Hdd:
             green_perc = str(100 - int(self.percentage))
             if len(red_perc) == 1:
                 red_perc = "0" + red_perc
+            if len(red_perc) == 3:
+                red_perc = "99"
+            if len(green_perc) == 3:
+                green_perc = "99"
             if len(green_perc) == 1:
                 green_perc = "0" + green_perc
             self.bg_color = "#" + red_perc + green_perc + "00"
