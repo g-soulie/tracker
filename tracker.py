@@ -10,13 +10,13 @@ import json
 UUID = {}
 config = {}
 LSBLK_EXPRESSION = '.*(sd(b|c|d|e)[0-9]) .*[ ]([^ ]+)[ ]*'
-DF_H_EXPRESSION = '^.* ([0-9]+)% '
+DF_H_EXPRESSION = '^.* ([0-9]+)G[ ]+[0-9]+G[ ]+[0-9\.]+G[ ]+([0-9]+)% '
 
 
 PROJECT_PATH = "/datas/Cloud/git/hddTracker/"
 
-UUID_FILE = "UUID.json"
-CONF_FILE = "config.json"
+UUID_FILE = "self-UUID.json"
+CONF_FILE = "self-config.json"
 
 UUID_PATH = PROJECT_PATH + UUID_FILE
 CONF_PATH = PROJECT_PATH + CONF_FILE
@@ -46,7 +46,6 @@ def set_parameters():
         "LOCAL_INFO_PATH"] + config["CURRENT_FOLDER"]
     config["OLD_INFO_PATH"] = config["LOCAL_INFO_PATH"] + config["OLD_FOLDER"]
     config["INFO_PATH"] = config["INDEX_FOLDER"] + config["INFO_FILE"]
-
 
 
 def preprocess_local_folder():
@@ -134,16 +133,29 @@ def collect_info():
         preprocess_local_folder()
         for hdd in os.listdir(config["MOUNT_FOLDER"]):
             print("collecting info on " + hdd + "...")
+            hdd_path = config["MOUNT_FOLDER"] + hdd + "/"
+            dico = {"indexed": []}
+
+            #size and percentages
             df_h = os.popen("df -h").read()
             df_h = df_h.split('\n')
+
             for line in df_h:
                 reg = re.match(DF_H_EXPRESSION +
                                config["MOUNT_FOLDER"] + hdd, line)
                 if reg is not None:
-                    hdd_path = config["MOUNT_FOLDER"] + hdd + "/"
-                    f = open(hdd_path + config["INFO_PATH"], 'w')
-                    f.write(reg.group(1))
-                    f.close()
+                    print("ok")
+                    
+                    dico["size"] = reg.group(1)
+                    dico["percentage"] = reg.group(2)
+
+            # idnexed files
+            f = open(hdd_path + config['INDEXED_PATH'], 'r')
+            for line in f:
+                dico["indexed"].append(line.split('-except-')[0].split('\n')[0])
+
+            with open(hdd_path + config["INFO_PATH"], 'w') as outfile:
+                json.dump(dico, outfile)
             save_info(hdd)
     else:
         error_no_device()
@@ -209,6 +221,7 @@ def save_index(folder):
                     config["CURRENT_INDEX_PATH"] + folder + "-" +
                     str(time.strftime("%y-%m-%d.%H-%M-%S")) + ".txt")
 
+
 def save_info(folder):
     process = subprocess.Popen(
         "mv " + config["CURRENT_INFO_PATH"] + folder + "* " +
@@ -271,15 +284,18 @@ if __name__ == '__main__':
         connected_UUID = get_connected_UUID()
         mount()
         if not args.no_indexing:
+            collect_info()
             index()
 
     if args.umount:
         if not args.no_indexing:
+            collect_info()
             index()
         umount()
 
     if args.index:
         if not args.no_indexing:
+            collect_info()
             index()
         else:
             print("! - Can not index and not index in the same time !")
