@@ -6,7 +6,7 @@ You have on each of your device a conf directory like :
       .tracker/
         index.txt
         indexed.txt
-
+        info.txt
 
 USE
 --------------------
@@ -55,6 +55,8 @@ A copy of these are in your local project index file.
          }
          
   **config.conf** contains all the folder you can configure
+  
+  **info.txt** contains the size and the percenatge of utilisation of each device
 
 
 Dependency
