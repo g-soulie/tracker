@@ -10,6 +10,7 @@ import json
 UUID = {}
 config = {}
 LSBLK_EXPRESSION = '.*(sd(b|c|d|e)[0-9]) .*[ ]([^ ]+)[ ]*'
+DF_H_EXPRESSION = '^.* ([0-9]+)% '
 
 
 PROJECT_PATH = "/datas/Cloud/git/hddTracker/"
@@ -35,22 +36,38 @@ def set_parameters():
         config = json.load(file)
     config["INDEX_PATH"] = config["INDEX_FOLDER"] + config["INDEX_FILE"]
     config["LOCAL_INDEX_PATH"] = PROJECT_PATH + "index/"
+    config["LOCAL_INFO_PATH"] = PROJECT_PATH + "info/"
     config["INDEXED_PATH"] = config["INDEX_FOLDER"] + config["INDEXED_FILE"]
-    config["CURRENT_PATH"] = config[
+    config["CURRENT_INDEX_PATH"] = config[
         "LOCAL_INDEX_PATH"] + config["CURRENT_FOLDER"]
-    config["OLD_PATH"] = config["LOCAL_INDEX_PATH"] + config["OLD_FOLDER"]
+    config["OLD_INDEX_PATH"] = config[
+        "LOCAL_INDEX_PATH"] + config["OLD_FOLDER"]
+    config["CURRENT_INFO_PATH"] = config[
+        "LOCAL_INFO_PATH"] + config["CURRENT_FOLDER"]
+    config["OLD_INFO_PATH"] = config["LOCAL_INFO_PATH"] + config["OLD_FOLDER"]
+    config["INFO_PATH"] = config["INDEX_FOLDER"] + config["INFO_FILE"]
 
 
-def preprocess_local_index_folder():
+
+def preprocess_local_folder():
     if not os.path.isdir(config["LOCAL_INDEX_PATH"]):
         os.mkdir(config["LOCAL_INDEX_PATH"])
-    if not os.path.isdir(config["CURRENT_PATH"]):
-        os.mkdir(config["CURRENT_PATH"])
-    if not os.path.isdir(config["OLD_PATH"]):
-        os.mkdir(config["OLD_PATH"])
+    if not os.path.isdir(config["CURRENT_INDEX_PATH"]):
+        os.mkdir(config["CURRENT_INDEX_PATH"])
+    if not os.path.isdir(config["OLD_INDEX_PATH"]):
+        os.mkdir(config["OLD_INDEX_PATH"])
     for folder in os.listdir(config["MOUNT_FOLDER"]):
-        if not os.path.isdir(config["OLD_PATH"] + folder):
-            os.mkdir(config["OLD_PATH"] + folder)
+        if not os.path.isdir(config["OLD_INDEX_PATH"] + folder):
+            os.mkdir(config["OLD_INDEX_PATH"] + folder)
+    if not os.path.isdir(config["LOCAL_INFO_PATH"]):
+        os.mkdir(config["LOCAL_INFO_PATH"])
+    if not os.path.isdir(config["CURRENT_INFO_PATH"]):
+        os.mkdir(config["CURRENT_INFO_PATH"])
+    if not os.path.isdir(config["OLD_INFO_PATH"]):
+        os.mkdir(config["OLD_INFO_PATH"])
+    for folder in os.listdir(config["MOUNT_FOLDER"]):
+        if not os.path.isdir(config["OLD_INFO_PATH"] + folder):
+            os.mkdir(config["OLD_INFO_PATH"] + folder)
 
 
 def get_connected_UUID():
@@ -106,13 +123,36 @@ def umount():
             process.wait()
             os.rmdir(config["MOUNT_FOLDER"] + folder)
             print(" . " + folder + " umounted")
+        process = subprocess.Popen(
+            "sudo chmod 777 -R " + config["MOUNT_FOLDER"], shell=True)
+        process.wait()
         os.rmdir(config["MOUNT_FOLDER"])
+
+
+def collect_info():
+    if os.path.isdir(config["MOUNT_FOLDER"]):
+        preprocess_local_folder()
+        for hdd in os.listdir(config["MOUNT_FOLDER"]):
+            print("collecting info on " + hdd + "...")
+            df_h = os.popen("df -h").read()
+            df_h = df_h.split('\n')
+            for line in df_h:
+                reg = re.match(DF_H_EXPRESSION +
+                               config["MOUNT_FOLDER"] + hdd, line)
+                if reg is not None:
+                    hdd_path = config["MOUNT_FOLDER"] + hdd + "/"
+                    f = open(hdd_path + config["INFO_PATH"], 'w')
+                    f.write(reg.group(1))
+                    f.close()
+            save_info(hdd)
+    else:
+        error_no_device()
 
 
 def index():
     print("indexing...")
     if os.path.isdir(config["MOUNT_FOLDER"]):
-        preprocess_local_index_folder()
+        preprocess_local_folder()
         for hdd in os.listdir(config["MOUNT_FOLDER"]):
             print("indexing " + hdd)
             hdd_path = config["MOUNT_FOLDER"] + hdd + "/"
@@ -134,7 +174,7 @@ def index():
                 if os.path.isfile(hdd_path + config["INDEX_PATH"]):
                     os.remove(hdd_path + config["INDEX_PATH"])
                 f = open(hdd_path + config["INDEX_PATH"], 'w')
-                f.close
+                f.close()
 
                 for i in range(len(indexed_folder)):
                     hide = ""
@@ -148,7 +188,7 @@ def index():
                         "\" >> " + hdd_path + config["INDEX_PATH"],
                         shell=True)
                     process.wait()
-                save(hdd)
+                save_index(hdd)
             else:
                 print("! - Error indexing " + hdd +
                       " : No indexed folders file")
@@ -159,14 +199,24 @@ def index():
         error_no_device()
 
 
-def save(folder):
+def save_index(folder):
     process = subprocess.Popen(
-        "mv " + config["CURRENT_PATH"] + folder + "* " +
-        config["OLD_PATH"] + folder + "/", shell=True)
+        "mv " + config["CURRENT_INDEX_PATH"] + folder + "* " +
+        config["OLD_INDEX_PATH"] + folder + "/", shell=True)
     process.wait()
     shutil.copyfile(config["MOUNT_FOLDER"] + folder +
                     "/" + config["INDEX_PATH"],
-                    config["CURRENT_PATH"] + folder + "-" +
+                    config["CURRENT_INDEX_PATH"] + folder + "-" +
+                    str(time.strftime("%y-%m-%d.%H-%M-%S")) + ".txt")
+
+def save_info(folder):
+    process = subprocess.Popen(
+        "mv " + config["CURRENT_INFO_PATH"] + folder + "* " +
+        config["OLD_INFO_PATH"] + folder + "/", shell=True)
+    process.wait()
+    shutil.copyfile(config["MOUNT_FOLDER"] + folder +
+                    "/" + config["INFO_PATH"],
+                    config["CURRENT_INFO_PATH"] + folder + "-" +
                     str(time.strftime("%y-%m-%d.%H-%M-%S")) + ".txt")
 
 
@@ -209,6 +259,8 @@ if __name__ == '__main__':
                         help="display some help on how it's working")
     parser.add_argument("-ni", "--no_indexing", action="store_true",
                         help="mount or umount without indexing")
+    parser.add_argument("-c", "--collect_info", action="store_true",
+                        help="collect info (size, ...)")
     args = parser.parse_args()
 
     set_UUID()
@@ -234,6 +286,9 @@ if __name__ == '__main__':
 
     if args.open:
         open_index_files()
+
+    if args.collect_info:
+        collect_info()
 
     if args.wtf:
         print()

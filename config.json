@@ -3,12 +3,13 @@
     "INDEX_FOLDER": ".tracker/",
     "INDEXED_FILE": "indexed.txt",
     "INDEX_FILE": "index.txt",
-    "CONF_PATH": "conf/",
+    "INFO_FILE": "info.txt",
+    "INFO_PATH": "info/",
     "CURRENT_FOLDER": "current/",
     "OLD_FOLDER": "old/",
     "EDITOR": "subl3",
     "USER": "root",
-        "unindexed": [
+    "unindexed": [
         "IMG[0-9]*.JPG",
         "IMG[0-9]*.jpg",
         "DSC[0-9]*.JPG",
@@ -16,6 +17,8 @@
         "_DSC[0-9]*.jpg",
         "_DSC[0-9]*.JPG",
         "_DSC[0-9]*.NEF",
-        "Photo[0-9]*.jpg"
+        "Photo[0-9]*.jpg",
+        "cache2",
+        "AppData"
     ]
 }

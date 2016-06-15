@@ -1,5 +1,7 @@
 index/*
 index
 self-*
+info/
+info
 __pycache__/*
 __pycache__
