@@ -2,6 +2,7 @@ from tkinter import *
 import os
 import tracker
 import json
+import time
 
 BG_COLOR = "#16171B"
 MG_COLOR = "#E6DB74"
@@ -16,7 +17,7 @@ tracker.set_parameters()
 tracker.set_UUID()
 config = tracker.config
 
-HDD_HEIGHT = 100
+HDD_HEIGHT = 120
 HDD_WIDTH = 250
 nb_colonnes = 3
 nb_hdd = len(tracker.UUID)
@@ -29,7 +30,7 @@ root = Tk()
 root.configure(background=BG_COLOR)
 
 
-frame1 = Frame(root, bg=BG_COLOR, height = 10)
+frame1 = Frame(root, bg=BG_COLOR, height=10)
 frame1.pack(side=TOP)
 frame1.propagate(False)
 
@@ -41,8 +42,6 @@ frame = Frame(root, bg=CONTACT_COLOR)
 myLabel2 = Label(root, text="A2P", bg=BG_COLOR, fg=FG_COLOR)
 myLabel2.pack(side=BOTTOM)
 frame.pack(side=TOP)
-
-
 
 
 def destroy(*args):
@@ -82,6 +81,8 @@ class Hdd:
                     self.percentage = dico['percentage']
                 if "indexed" in dico.keys():
                     self.indexed = dico["indexed"]
+                if "last_index" in dico.keys():
+                    self.last = dico["last_index"]
         self.set_bg_color()
 
     def pack(self, root):
@@ -101,10 +102,20 @@ class Hdd:
             name.pack(side=TOP)
             indexed = Text(self.frame, bg=self.bg_color,
                            highlightcolor=BG_COLOR, selectborderwidth=0,
-                           highlightthickness=0, borderwidth=0)
+                           highlightthickness=0, borderwidth=0, height=3)
             for indexed_folder in self.indexed:
                 indexed.insert(END, indexed_folder + " - ")
+
             indexed.pack(side=TOP)
+
+            last = Text(self.frame, bg=self.bg_color,
+                        highlightcolor=BG_COLOR, selectborderwidth=0,
+                        highlightthickness=0, borderwidth=0, height=1)
+            last.tag_configure('right', justify='right')
+            last_time = time.strptime(self.last, "%y-%m-%d.%H-%M-%S")
+            last_time = time.strftime("%d %b (%Hh)",last_time)
+            last.insert(END, str(last_time)+ " ", 'right')
+            last.pack(side=TOP)
 
     def set_bg_color(self):
         self.bg_color = REF_COLOR

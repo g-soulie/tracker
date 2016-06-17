@@ -16,8 +16,8 @@ DF_H_EXPRESSION = '^.* ([0-9\.]+)G[ ]+[0-9\.]+G[ ]+[0-9\.]+G[ ]+([0-9]+)% '
 
 PROJECT_PATH = "/datas/Cloud/git/hddTracker/"
 
-UUID_FILE = "self-UUID.json"
-CONF_FILE = "self-config.json"
+UUID_FILE = "UUID.json"
+CONF_FILE = "config.json"
 
 UUID_PATH = PROJECT_PATH + UUID_FILE
 CONF_PATH = PROJECT_PATH + CONF_FILE
@@ -60,8 +60,9 @@ def preprocess_local_folders():
 
     for uuid in connected_UUID.keys():
         if uuid in UUID.keys():
-            if not os.path.isdir(config["OLD_INDEX_PATH"] + UUID[uuid]["name"]):
-                os.mkdir(config["OLD_INDEX_PATH"] + UUID[uuid]["name"])
+            if not os.path.isdir(config["OLD_INDEX_PATH"] +
+                                 UUID[uuid]["name"] + "-o"):
+                os.mkdir(config["OLD_INDEX_PATH"] + UUID[uuid]["name"] + "-o")
 
     # #########   INFO   #############
     if not os.path.isdir(config["LOCAL_INFO_PATH"]):
@@ -74,17 +75,20 @@ def preprocess_local_folders():
     for uuid in connected_UUID.keys():
         if uuid in UUID.keys():
             if not os.path.isdir(config["OLD_INFO_PATH"] +
-                                 UUID[uuid]["name"]):
-                os.mkdir(config["OLD_INFO_PATH"] + UUID[uuid]["name"])
+                                 UUID[uuid]["name"] + "-o"):
+                os.mkdir(config["OLD_INFO_PATH"] +
+                         UUID[uuid]["name"] + "-o")
 
 
 def preprocess_non_local_folders():
     for uuid in connected_UUID.keys():
         if uuid in UUID.keys():
-            if not os.path.isdir(get_mount_folder(uuid) + config['INDEX_FOLDER']):
+            if not os.path.isdir(get_mount_folder(uuid) +
+                                 config['INDEX_FOLDER']):
                 os.mkdir(get_mount_folder(uuid) + config['INDEX_FOLDER'])
                 process = subprocess.Popen("sudo chmod 777 -R " +
-                                           get_mount_folder(uuid) + config['INDEX_FOLDER'], shell=True)
+                                           get_mount_folder(uuid) +
+                                           config['INDEX_FOLDER'], shell=True)
                 process.wait()
 
 
@@ -100,6 +104,7 @@ def set_connected_UUID():
                 string = " " + UUID[reg.group(3)]["name"]
             else:
                 string = " no match."
+            print(reg.group(1) + " : " + string)
 
 
 def get_mount_folders():
@@ -146,7 +151,6 @@ def umount():
     nb_umounted = 0
     for uuid in connected_UUID.keys():
         if "sda" not in connected_UUID[uuid]:
-            
             if os.path.isdir(get_mount_folder(uuid)):
                 nb_umounted += 1
                 collect_info(uuid)
@@ -167,9 +171,9 @@ def umount():
 def collect_info(uuid):
     if uuid in UUID.keys():
         if os.path.isdir(get_mount_folder(uuid)):
-            print("collect info on "             + UUID[uuid]["name"] + "...")
+            print("collect info on " + UUID[uuid]["name"] + "...")
             hdd_path = get_mount_folder(uuid)
-            dico = {"indexed": []}
+            dico = {"indexed": [], "last_index": ""}
 
             # size and percentages
             df_h = os.popen("df -h").read()
@@ -186,6 +190,11 @@ def collect_info(uuid):
             indexed_folders = get_indexed_folders(hdd_path)[0]
             for folder in indexed_folders:
                 dico["indexed"].append(folder)
+
+            # last index time
+            for file in os.listdir(config["CURRENT_INDEX_PATH"]):
+                if (UUID[uuid]["name"] + "-index") in file:
+                    dico["last_index"] = ".".join(file.split('.')[1:3])
 
             if not os.path.isfile(hdd_path + config["INFO_PATH"]):
                 os.popen("sudo touch " + hdd_path + config["INFO_PATH"])
@@ -247,21 +256,23 @@ def get_indexed_folders(path):
 
 def save_index(uuid):
     process = subprocess.Popen(
-        "mv " + config["CURRENT_INDEX_PATH"] + UUID[uuid]["name"] + "* " +
-        config["OLD_INDEX_PATH"] + UUID[uuid]["name"] + "/", shell=True)
+        "mv " + config["CURRENT_INDEX_PATH"] + UUID[uuid]["name"] +
+        "-index.* " +
+        config["OLD_INDEX_PATH"] + UUID[uuid]["name"] + "-o/", shell=True)
     process.wait()
     shutil.copyfile(get_mount_folder(uuid) + "/" + config["INDEX_PATH"],
-                    config["CURRENT_INDEX_PATH"] + UUID[uuid]["name"] + "-" +
+                    config["CURRENT_INDEX_PATH"] + UUID[uuid]["name"] + "-index." +
                     str(time.strftime("%y-%m-%d.%H-%M-%S")) + ".txt")
 
 
 def save_info(uuid):
     process = subprocess.Popen(
-        "mv " + config["CURRENT_INFO_PATH"] + UUID[uuid]["name"] + "* " +
-        config["OLD_INFO_PATH"] + UUID[uuid]["name"] + "/", shell=True)
+        "mv " + config["CURRENT_INFO_PATH"] + UUID[uuid]["name"] + "-info* " +
+        config["OLD_INFO_PATH"] + UUID[uuid]["name"] + "-o/", shell=True)
     process.wait()
     shutil.copyfile(get_mount_folder(uuid) + "/" + config["INFO_PATH"],
-                    config["CURRENT_INFO_PATH"] + UUID[uuid]["name"] + "-" +
+                    config["CURRENT_INFO_PATH"] + UUID[uuid]["name"] +
+                    "-info." +
                     str(time.strftime("%y-%m-%d.%H-%M-%S")) + ".txt")
 
 
