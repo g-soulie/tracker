@@ -19,7 +19,7 @@ config = tracker.config
 
 HDD_HEIGHT = 120
 HDD_WIDTH = 250
-nb_colonnes = 3
+nb_colonnes = 4
 nb_hdd = len(tracker.UUID)
 UUID = tracker.UUID
 

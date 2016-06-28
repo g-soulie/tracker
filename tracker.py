@@ -16,8 +16,8 @@ DF_H_EXPRESSION = '^.* ([0-9\.]+)G[ ]+[0-9\.]+G[ ]+[0-9\.]+G[ ]+([0-9]+)% '
 
 PROJECT_PATH = "/datas/Cloud/git/hddTracker/"
 
-UUID_FILE = "UUID.json"
-CONF_FILE = "config.json"
+UUID_FILE = "self-UUID.json"
+CONF_FILE = "self-config.json"
 
 UUID_PATH = PROJECT_PATH + UUID_FILE
 CONF_PATH = PROJECT_PATH + CONF_FILE
@@ -150,20 +150,23 @@ def umount():
     print("umounting...")
     nb_umounted = 0
     for uuid in connected_UUID.keys():
-        if "sda" not in connected_UUID[uuid]:
-            if os.path.isdir(get_mount_folder(uuid)):
-                nb_umounted += 1
-                collect_info(uuid)
-                process = subprocess.Popen("sudo umount " +
-                                           get_mount_folder(uuid), shell=True)
-                process.wait()
-                print(" . " + UUID[uuid]["name"] +
-                      " umounted from " + get_mount_folder(uuid))
-                process.wait()
-                print("removing" + get_mount_folder(uuid))
-                os.removedirs(get_mount_folder(uuid))
+        if uuid in UUID.keys():
+            if "sda" not in connected_UUID[uuid]:
+                if os.path.isdir(get_mount_folder(uuid)):
+                    nb_umounted += 1
+                    collect_info(uuid)
+                    process = subprocess.Popen("sudo umount " +
+                                               get_mount_folder(uuid), shell=True)
+                    process.wait()
+                    print(" . " + UUID[uuid]["name"] +
+                          " umounted from " + get_mount_folder(uuid))
+                    process.wait()
+                    print("removing" + get_mount_folder(uuid))
+                    os.removedirs(get_mount_folder(uuid))
+            else:
+                print(connected_UUID[uuid] + " not umounted : local device")
         else:
-            print(connected_UUID[uuid] + " not umounted : local device")
+            print(connected_UUID[uuid] + " not umounted: not known")
     if nb_umounted == 0:
         error_no_device()
 
@@ -303,6 +306,8 @@ if __name__ == '__main__':
                         help="mount or umount without indexing")
     parser.add_argument("-c", "--collect_info", action="store_true",
                         help="collect info (size, ...)")
+    parser.add_argument("-f", "--fast", action="store_true",
+                        help="mount or umount without indexing")
     args = parser.parse_args()
 
     set_UUID()
@@ -313,16 +318,16 @@ if __name__ == '__main__':
     if args.mount:
         umount()
         mount()
-        if not args.no_indexing:
+        if not args.no_indexing and not args.fast:
             index()
 
     if args.umount:
-        if not args.no_indexing:
+        if not args.no_indexing and not args.fast:
             index()
         umount()
 
     if args.index:
-        if not args.no_indexing:
+        if not args.no_indexing and not args.fast:
             index()
         else:
             print("! - Can not index and not index in the same time !")
